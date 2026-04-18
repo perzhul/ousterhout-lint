@@ -1,13 +1,6 @@
-// Package passthrough flags function parameters that flow into a deeper call
-// without any branching, transformation, or inspection. A pass-through
-// parameter is a red flag that the layer isn't adding abstraction value —
-// the caller could just hand the value straight to the downstream function.
-//
-// The v1 detector is an AST-level approximation of Ousterhout's rule: a
-// parameter is pass-through if every reference to it in the function body is
-// a direct argument to a single call. Uses inside binary expressions, field
-// accesses, comparisons, type assertions, or assignments disqualify the
-// parameter.
+// Package passthrough flags parameters that flow into a deeper call without
+// branching, transformation, or inspection — a shape that signals the
+// layer adds no abstraction value over the downstream function.
 package passthrough
 
 import (
@@ -23,8 +16,6 @@ import (
 
 const analyzerName = "passthrough"
 
-// Analyzer is the passthrough pass — see the package doc for the rule it
-// enforces.
 var Analyzer = &analysis.Analyzer{
 	Name:     analyzerName,
 	Doc:      "reports function parameters that are forwarded to a deeper call without inspection",
@@ -70,11 +61,8 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	return nil, nil
 }
 
-// singleDirectCallArgUsage returns the call expression if obj is referenced
-// exactly once in body, that reference is a direct argument to a call, and
-// the callee is defined in the same package. Cross-package forwarding
-// (e.g. adapting a stdlib API) is the conventional shape of the adapter
-// pattern and is excluded to keep the signal high.
+// Cross-package forwarding is the conventional adapter pattern — excluded
+// here to keep the signal high.
 func singleDirectCallArgUsage(pass *analysis.Pass, body *ast.BlockStmt, obj types.Object) (*ast.CallExpr, bool) {
 	var totalRefs int
 	var callArg *ast.CallExpr
@@ -108,9 +96,6 @@ func singleDirectCallArgUsage(pass *analysis.Pass, body *ast.BlockStmt, obj type
 	return callArg, true
 }
 
-// isLocalCall reports whether call's callee is defined in the current package.
-// Unresolvable or universe-scope callees (builtins, type conversions) are
-// treated as non-local so we don't flag them.
 func isLocalCall(pass *analysis.Pass, call *ast.CallExpr) bool {
 	var obj types.Object
 	switch fn := call.Fun.(type) {
@@ -134,8 +119,7 @@ func isDirectArg(call *ast.CallExpr, id *ast.Ident) bool {
 	return false
 }
 
-// exemptTypes are fully-qualified type names conventionally plumbed through
-// many layers of Go code. Flagging them as pass-through is noise.
+// Conventional plumbing types — flagging them as pass-through is noise.
 var exemptTypes = map[string]bool{
 	"context.Context": true,
 	"testing.T":       true,
@@ -144,9 +128,7 @@ var exemptTypes = map[string]bool{
 	"testing.TB":      true,
 }
 
-// isExemptType reports whether expr resolves to one of the conventional
-// plumbing types. Pointer wrapping is unwrapped: *testing.T is the usual
-// shape in Go tests.
+// Unwraps pointer types so *testing.T matches the "testing.T" entry.
 func isExemptType(pass *analysis.Pass, expr ast.Expr) bool {
 	t := pass.TypesInfo.TypeOf(expr)
 	if t == nil {

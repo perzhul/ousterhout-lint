@@ -1,8 +1,5 @@
-// Command ousterhout-lint is a deep-module enforcer for Go, derived from
-// John Ousterhout's "A Philosophy of Software Design". It bundles two
-// analyzers — shallowmethod and passthrough — that catch the mechanically
-// detectable shape of shallow abstraction: trivial wrapper methods and
-// parameters that flow straight through without adding value.
+// Command ousterhout-lint bundles the shallowmethod and passthrough
+// analyzers into a single CLI.
 package main
 
 import (

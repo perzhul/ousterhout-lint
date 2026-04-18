@@ -1,9 +1,6 @@
-// Package shallowmethod reports methods whose body is a trivial pass-through
-// of the outer parameters. Ousterhout's central thesis is that modules should
-// be deep — a simple interface hiding significant complexity. A method that
-// only forwards its arguments to another call adds call-stack depth without
-// adding abstraction value, and is a strong signal that the abstraction
-// boundary is in the wrong place.
+// Package shallowmethod flags methods whose body is a trivial pass-through
+// of their parameters to another call — a wrapper that adds call-stack
+// depth without adding abstraction value.
 package shallowmethod
 
 import (
@@ -20,8 +17,6 @@ import (
 
 const analyzerName = "shallowmethod"
 
-// Analyzer is the shallowmethod pass — see the package doc for the rule it
-// enforces.
 var Analyzer = &analysis.Analyzer{
 	Name:     analyzerName,
 	Doc:      "reports methods whose body is a trivial pass-through of the outer parameters",
@@ -29,15 +24,8 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
-// implementsMarker matches a doc-comment line whose text is, optionally
-// prefixed by the method name, "implements <InterfaceName>" — e.g.
-//
-//	// GetUser implements Fetcher.
-//	// implements Fetcher
-//
-// The anchor and single-word slot before "implements" prevent accidental
-// suppression from sentences that merely contain the word ("this layer
-// doesn't implement anything useful").
+// Anchored + single-word prefix slot so "this layer doesn't implement
+// anything useful" can't accidentally suppress the check.
 var implementsMarker = regexp.MustCompile(`^//\s*(?:\w+\s+)?implements\s+\w+`)
 
 func run(pass *analysis.Pass) (interface{}, error) {
@@ -81,12 +69,8 @@ func isCandidate(fn *ast.FuncDecl) bool {
 	return true
 }
 
-// shallowPassThroughCall returns the inner call if fn's body is a single
-// statement consisting of a return/expression wrapping a call whose every
-// argument is an identifier that names one of fn's parameters.
-//
 // Builtins (len, cap, make) and type conversions (int(x), UserID(s)) are
-// rejected because they aren't wrappers — they're the operation itself.
+// rejected — they're the operation itself, not a wrapper.
 func shallowPassThroughCall(info *types.Info, fn *ast.FuncDecl) (*ast.CallExpr, bool) {
 	if len(fn.Body.List) != 1 {
 		return nil, false
@@ -154,11 +138,8 @@ func shallowPassThroughCall(info *types.Info, fn *ast.FuncDecl) (*ast.CallExpr, 
 	return call, true
 }
 
-// implementsAnyInterface reports whether fn's receiver type satisfies any
-// interface declared in the current package or in a directly-imported
-// package, where that interface includes a method with fn's name. Adapter
-// and bridge implementations of io.Writer, http.Handler, fmt.Stringer, and
-// similar widely-used interfaces are legitimate thin wrappers.
+// Adapter and bridge implementations of io.Writer, http.Handler,
+// fmt.Stringer and similar interfaces are legitimate thin wrappers.
 func implementsAnyInterface(pass *analysis.Pass, fn *ast.FuncDecl) bool {
 	obj := pass.TypesInfo.Defs[fn.Name]
 	if obj == nil {

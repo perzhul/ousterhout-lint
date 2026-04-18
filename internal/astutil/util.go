@@ -12,9 +12,8 @@ import (
 	"unicode/utf8"
 )
 
-// IsConstructor reports whether the function name follows the New/NewXxx
-// convention. The rune after "New" must be an uppercase letter — so that
-// Newline, Newer, NewsFeed are *not* considered constructors.
+// IsConstructor recognizes the New/NewXxx naming convention. The rune after
+// "New" must be uppercase so Newline, Newer, NewsFeed don't qualify.
 func IsConstructor(name string) bool {
 	if name == "New" {
 		return true
@@ -27,7 +26,6 @@ func IsConstructor(name string) bool {
 	return unicode.IsUpper(r)
 }
 
-// ParamCount returns the total parameter count of a FuncType, expanding groups.
 func ParamCount(ft *ast.FuncType) int {
 	if ft == nil || ft.Params == nil {
 		return 0
@@ -43,10 +41,7 @@ func ParamCount(ft *ast.FuncType) int {
 	return n
 }
 
-// RenderCallee returns the textual form of the callee in call, suffixed
-// with "(...)". Used in diagnostic messages to point at the wrapped call
-// without dumping its arguments. Returns a stable fallback if printing
-// fails.
+// RenderCallee returns the textual form of call.Fun suffixed with "(...)".
 func RenderCallee(fset *token.FileSet, call *ast.CallExpr) string {
 	var buf bytes.Buffer
 	if err := printer.Fprint(&buf, fset, call.Fun); err != nil {
@@ -55,7 +50,6 @@ func RenderCallee(fset *token.FileSet, call *ast.CallExpr) string {
 	return fmt.Sprintf("%s(...)", buf.String())
 }
 
-// HasNolintComment reports whether any comment in cg contains //nolint:<name>.
 func HasNolintComment(cg *ast.CommentGroup, name string) bool {
 	if cg == nil {
 		return false

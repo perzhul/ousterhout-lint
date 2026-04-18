@@ -28,4 +28,3 @@ func TestIsConstructor(t *testing.T) {
 		})
 	}
 }
-
