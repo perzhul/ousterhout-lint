@@ -5,17 +5,13 @@ package main
 import (
 	"golang.org/x/tools/go/analysis"
 
-	"github.com/perzhul/ousterhout-lint/passes/passthrough"
 	"github.com/perzhul/ousterhout-lint/passes/shallowmethod"
 )
 
 type analyzerPlugin struct{}
 
 func (analyzerPlugin) GetAnalyzers() []*analysis.Analyzer {
-	return []*analysis.Analyzer{
-		shallowmethod.Analyzer,
-		passthrough.Analyzer,
-	}
+	return []*analysis.Analyzer{shallowmethod.Analyzer}
 }
 
 // AnalyzerPlugin is the symbol golangci-lint looks up via plugin.Lookup.

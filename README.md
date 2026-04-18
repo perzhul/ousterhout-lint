@@ -11,18 +11,19 @@ Ousterhout's central thesis is that good modules hide significant complexity beh
 
 Scope is intentionally tight. The linter is *not* a general Ousterhout toolkit. It ships two passes, both targeting gaps that existing Go linters don't cover.
 
-## Passes
+## What it catches
 
-| Pass | What it catches |
-|---|---|
-| `shallowmethod` | Methods whose entire body forwards the outer parameters to a single inner call. `func (s *Service) GetUser(id int) (*User, error) { return s.repo.GetUser(id) }` |
-| `passthrough` | Individual parameters that flow into a downstream same-package call without any inspection, transformation, or branching. |
+Methods whose entire body forwards the outer parameters to a single inner call:
+
+```go
+func (s *Service) GetUser(id int) (*User, error) { return s.repo.GetUser(id) }
+```
 
 Existing tools (`revive`, `gocritic`, `godoc`, `funlen`) already cover parameter counts, exported doc presence, and naming conventions — those rules are deliberately *not* re-implemented here.
 
 ## Examples
 
-### `shallowmethod` — flagged
+### Flagged
 
 ```go
 func (s *Service) GetUser(id int) (*User, error) {
@@ -36,22 +37,6 @@ remove this layer or let it add real value
 ```
 
 Either delete the method and let callers hit the repo directly, or let the wrapper do something real — error wrapping, auth, caching, metrics.
-
-### `passthrough` — flagged
-
-```go
-func (s *Service) Handle(id int) error {
-    log.Print("handling")
-    return s.repo.Get(id)
-}
-```
-
-```
-passthrough: parameter "id" is forwarded to s.repo.Get(...) without
-inspection; consider whether this layer adds value
-```
-
-`id` isn't inspected or transformed — it just rides through. Either do something with it, or hoist the logging and drop the wrapper.
 
 ### Not flagged
 
@@ -119,15 +104,10 @@ golangci-lint's newer [Module Plugin System](https://golangci-lint.run/plugins/m
 
 ## Escape hatches
 
-Both passes respect standard suppression:
-
-- `//nolint:shallowmethod` or `//nolint:passthrough` on the function's doc comment.
+- `//nolint:shallowmethod` on the function's doc comment.
 - A doc comment containing `implements <InterfaceName>` suppresses `shallowmethod` — adapter and bridge methods are legitimate thin wrappers.
 - `shallowmethod` auto-skips when the receiver type implements a local interface with the method's name (covers adapter patterns for stdlib/library interfaces).
-- Constructors (`New`, `NewXxx`) are exempt from both passes.
-- `passthrough` exempts `context.Context` and `*testing.T`/`testing.TB` parameters (idiomatic Go plumbing).
-- `passthrough` skips forwarding to external-package functions — stdlib/library adapters are legitimate boundary-crossers, not shallow modules.
-- `passthrough` skips the function entirely when the body does real work: `fmt.Errorf` / `errors.Wrap` error annotation, `for` / `range` / `switch` / `select` control flow, or two or more call expressions. Ousterhout's "shallow" is a property of the whole function, not an individual parameter.
+- Constructors (`New`, `NewXxx`) are exempt.
 
 ## What this linter is *not*
 
