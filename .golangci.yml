@@ -1,0 +1,31 @@
+version: "2"
+
+# Dogfood config — the linter runs on itself in CI.
+run:
+  timeout: 2m
+
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - ineffassign
+    - unused
+
+# To wire ousterhout-lint into your own project's golangci-lint, build the
+# plugin and reference it here:
+#
+#   make plugin
+#   cp ousterhout.so /path/to/your/project/
+#
+# Then in your project's .golangci.yml:
+#
+#   linters-settings:
+#     custom:
+#       ousterhout:
+#         path: ./ousterhout.so
+#         description: Deep-module enforcer (Ousterhout)
+#         original-url: github.com/perzhul/ousterhout-lint
+#   linters:
+#     enable:
+#       - ousterhout
