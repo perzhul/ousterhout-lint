@@ -123,10 +123,11 @@ Both passes respect standard suppression:
 
 - `//nolint:shallowmethod` or `//nolint:passthrough` on the function's doc comment.
 - A doc comment containing `implements <InterfaceName>` suppresses `shallowmethod` — adapter and bridge methods are legitimate thin wrappers.
-- `shallowmethod` auto-skips when the receiver type implements a local interface with the method's name.
-- Constructors (names starting with `New`) are exempt from `shallowmethod`.
-- `passthrough` exempts `context.Context` parameters (idiomatic Go plumbing).
+- `shallowmethod` auto-skips when the receiver type implements a local interface with the method's name (covers adapter patterns for stdlib/library interfaces).
+- Constructors (`New`, `NewXxx`) are exempt from both passes.
+- `passthrough` exempts `context.Context` and `*testing.T`/`testing.TB` parameters (idiomatic Go plumbing).
 - `passthrough` skips forwarding to external-package functions — stdlib/library adapters are legitimate boundary-crossers, not shallow modules.
+- `passthrough` skips the function entirely when the body does real work: `fmt.Errorf` / `errors.Wrap` error annotation, `for` / `range` / `switch` / `select` control flow, or two or more call expressions. Ousterhout's "shallow" is a property of the whole function, not an individual parameter.
 
 ## What this linter is *not*
 

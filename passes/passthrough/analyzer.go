@@ -32,10 +32,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// Single-statement bodies are shallowmethod's job.
 			return
 		}
+		if fn.Name != nil && astutil.IsConstructor(fn.Name.Name) {
+			return
+		}
 		if astutil.HasNolintComment(fn.Doc, analyzerName) {
 			return
 		}
 		if fn.Type.Params == nil {
+			return
+		}
+		if hasValueAddMarker(pass, fn.Body) {
+			return
+		}
+		if countCalls(fn.Body) >= 2 {
 			return
 		}
 		for _, field := range fn.Type.Params.List {
@@ -115,6 +124,65 @@ func isDirectArg(call *ast.CallExpr, id *ast.Ident) bool {
 		if a == id {
 			return true
 		}
+	}
+	return false
+}
+
+// A body with multiple call expressions is doing real work — a canonical
+// shallow forwarder has exactly one.
+func countCalls(body *ast.BlockStmt) int {
+	n := 0
+	ast.Inspect(body, func(node ast.Node) bool {
+		if _, ok := node.(*ast.CallExpr); ok {
+			n++
+		}
+		return true
+	})
+	return n
+}
+
+// A function with error wrapping, iteration, or switch-based dispatch is
+// doing real work — its parameters aren't "just plumbing" even if one
+// happens to be forwarded verbatim.
+func hasValueAddMarker(pass *analysis.Pass, body *ast.BlockStmt) bool {
+	found := false
+	ast.Inspect(body, func(n ast.Node) bool {
+		if found {
+			return false
+		}
+		switch node := n.(type) {
+		case *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
+			found = true
+			return false
+		case *ast.CallExpr:
+			if isErrorWrappingCall(pass, node) {
+				found = true
+				return false
+			}
+		}
+		return true
+	})
+	return found
+}
+
+// fmt.Errorf and errors.Wrap/Wrapf indicate the function is annotating an
+// error with domain context — a legitimate layer, not plumbing.
+func isErrorWrappingCall(pass *analysis.Pass, call *ast.CallExpr) bool {
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return false
+	}
+	obj := pass.TypesInfo.Uses[sel.Sel]
+	if obj == nil || obj.Pkg() == nil {
+		return false
+	}
+	pkg := obj.Pkg().Path()
+	name := sel.Sel.Name
+	switch pkg {
+	case "fmt":
+		return name == "Errorf"
+	case "github.com/pkg/errors":
+		return name == "Wrap" || name == "Wrapf" || name == "WithMessage" || name == "WithMessagef"
 	}
 	return false
 }

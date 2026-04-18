@@ -2,6 +2,7 @@ package p
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"testing"
 )
@@ -106,4 +107,47 @@ func HelperT(t *testing.T) {
 func HelperTB(tb testing.TB) {
 	_ = "side"
 	assertTB(tb)
+}
+
+// --- value-add markers exempt the function ---
+
+// Error wrapping via fmt.Errorf — real value, not a shallow layer.
+func (s *Svc) Wrapped(id int) error {
+	err := s.repo.Get(id)
+	if err != nil {
+		return fmt.Errorf("svc: %w", err)
+	}
+	return nil
+}
+
+// For loop — function is iterating, not plumbing.
+func (s *Svc) Loop(id int) error {
+	for i := 0; i < 3; i++ {
+		_ = i
+	}
+	return s.repo.Get(id)
+}
+
+// Switch — dispatching is real work.
+func (s *Svc) Dispatch(id int) error {
+	switch id {
+	case 0:
+		return nil
+	}
+	return s.repo.Get(id)
+}
+
+// Two calls in body, param forwarded once — the second call signals
+// composition, so id is not "just plumbing".
+func (s *Svc) Compose(id int) error {
+	_ = s.repo.Get(42)
+	return s.repo.Get(id)
+}
+
+// Constructor by naming convention — exempt like shallowmethod does.
+type Wrapper struct{ inner *Repo }
+
+func NewWrapper(r *Repo, id int) *Wrapper {
+	_ = id
+	return &Wrapper{inner: r}
 }
